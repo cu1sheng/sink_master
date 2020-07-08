@@ -1,0 +1,220 @@
+## Linux服务搭建
+
+### JDK安装
+
+1、检查是否安装
+```shell script
+java -version
+```
+2、拷贝到指定安装目录
+```shell script
+cp -r /home/download/jdk-8u221-linux-x64.tar.gz /usr/local/java/
+```
+3、解压操作
+```shell script
+cd /usr/local/java/ #切换到指定目录
+tar -zxvf jdk-8u221-linux-x64.tar.gz #解压文件
+```
+4、配置环境变量
+```shell script
+export JAVA_HOME=/usr/local/java/jdk1.8.0_221/
+export JRE_HOME=/$JAVA_HOME/jre
+export CLASSPATH=.:$JAVA_HOME/jre/lib/rt.jar:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar
+export PATH=$PATH:$JAVA_HOME/bin:$JRE_HOME/bin
+
+source /etc/profile #更新配置生效
+```
+5、验证是否成功
+```shell script
+java -version
+
+#java version "1.8.0_221"
+#Java(TM) SE Runtime Environment (build 1.8.0_221-b11)
+#Java HotSpot(TM) 64-Bit Server VM (build 25.221-b11, mixed mode)
+```
+
+### Tomcat安装
+1、复制安装文件到指定目录
+```shell script
+cp -r /home/download/apache-tomcat-8.5.53.tar.gz /usr/local/tomcat/
+```
+2、进入目录
+```shell script
+cd /usr/local/tomcat/
+```
+3、解压安装包
+```shell script
+tar -zxvf apache-tomcat-8.5.53.tar.gz cd /usr/local/tomcat/
+```
+4、配置环境变量
+```shell script
+export CATALINA_HOME=/usr/local/tomcat/apache-tomcat-8.5.53
+export CLASSPATH=.:$JAVA_HOME/lib:$CATALINA_HOME/lib
+export PATH=$PATH:$CATALINA_HOME/bin
+
+#更新环境变量
+source /etc/profile
+```
+5、启动Tomcat测试
+```shell script
+./catalina.sh start
+http://${IP}:8080
+```
+
+### 防火墙操作
+```shell script
+systemctl start firewalld # 启动防火墙
+systemctl stop firewalld # 关闭防火墙
+systemctl restart firewalld # 重启防火墙 添加或删除端口必须重启
+systemctl status firewalld # 查看防火墙启动状态
+firewall-cmd --list-ports # 查看所有开放的端口
+firewall-cmd --permanent --zone=public --add-port=${port}/tcp # 添加开放端口
+firewall-cmd --permanent --zone=public --remove-port=${port}/tcp # 删除开放端口
+```
+
+### SVN仓库安装
+1、安装SVN
+```shell script
+yum install subversion #云命令安装
+```
+2、查看安装版本
+```shell script
+svnserve --version
+```
+3、创建版本库
+```shell script
+mkdir svn #创建目录
+svnadmin create /var/svn/proname #用svn管理员创建proname库
+```
+4、目录说明
+```
+proname
+|——conf #是这个仓库的配置文件（仓库的用户访问账号、权限等）
+|   |——authz #权限控制文件
+|   |——passwd #帐号密码文件
+|   |——svnserve.conf #SVN服务配置文件
+|——db #所有版本控制的数据存放文件
+|——format #是一个文本文件，里面只放了一个整数，表示当前文件库配置的版本号
+|——hooks #放置hook脚本文件的目录
+|——locks #用来放置subversion见艰苦锁定数据的目录，用来追踪存取文件库的客户端
+```
+5、账户设置
+```shell script
+cd /conf
+vim passwod
+#输入账户 账号=密码
+account=passwod
+
+#设置权限
+vim auth
+#设置权限 账号=权限 r读w写
+account=rw
+
+#修改svnserve.conf文件 vi svnserve.conf
+#打开下面的几个注释：
+
+anon-access = read #匿名用户可读
+auth-access = write #授权用户可写
+password-db = passwd #使用哪个文件作为账号文件
+authz-db = authz #使用哪个文件作为权限文件
+realm =/var/svn/目录名 # 认证空间名，版本库所在目录
+```
+6、启动svn版本库
+```shell script
+svnserve -d -r /var/svn/repo --listen-port=3690
+```
+7、停止SVN
+```shell script
+killall svnserve
+```
+卸载SVN
+```shell script
+yum remove subversion
+```
+
+###MySql安装
+1、检查是否已安装
+```shell script
+rpm -qa | grep mysql
+
+rpm -e --nodeps mysql-libs-5.1.73-5.el6_6.x86_64 #卸载
+
+grep mysql #验证是否已删除完毕
+whereis mysql
+find / -name mysql #删除相关目录
+
+cat /etc/group | grep mysql
+cat /etc/passwd | grep mysql
+#检查mysql用户组和用户是否存在，如果没有，则创建
+groupadd mysql
+useradd -r -g mysql mysql
+```
+2、下载Mysql
+```shell script
+wget http://repo.mysql.com/mysql57-community-release-el7-8.noarch.rpm
+```
+3、安装
+```shell script
+sudo yum install wget
+
+sudo rpm -ivh mysql57-community-release-el7-8.noarch.rpm
+sudo yum install mysql-server
+```
+4、设置密码
+```shell script
+sudo grep 'temporary password' /var/log/mysqld.log #查看临时密码 如若为空请保证安装前已将mysql相关文件删除干净
+systemctl restart mysqld # 重启服务
+systemctl status mysqld # 查看服务执行状态
+grep 'temporary password' /var/log/mysqld.log #再次查看临时密码
+```
+5、配置安装选项
+```shell script
+sudo mysql_secure_installation #输入刚才的临时密码 All done!表示配置已经完成
+```
+6、远程访问
+```shell script
+#连接数据库报错：1130-Host 'xxx' is not allowed to connect to this MySQL server解决
+mysql -u root -p #连接服务器
+show databases; #看当前所有数据库
+use mysql; #进入mysql数据库
+select 'host' from user where user='root'; #查询下你的用户名为root下host字段的参数
+update user set host ='%'where user ='root';
+flush privileges; # 一定记得刷新
+```
+
+### memcached安装
+1、memcached依赖于libevent库,因此需要先安装 libevent
+```shell script
+wget https://github.com/libevent/libevent/releases/download/release-2.1.8-stable/libevent-2.1.8-stable.tar.gz
+
+wget http://www.memcached.org/files/memcached-1.5.10.tar.gz
+```
+2、安装libevent
+```shell script
+tar zxvf libevent-2.0.21-stable.tar.gz
+
+cd libevent-2.0.21-stable
+
+./configure --prefix=/usr/local/libevent
+
+make && make install
+```
+3、安装memcached
+```shell script
+tar zxvf memcached-1.4.5.tag.gz
+
+cd memcached-1.4.5
+
+./configure --prefix=/usr/local/memcached --with-libevent=/usr/local/libevent
+
+make && make install
+```
+4、启动memcached
+```shell script
+memcached/bin/memcached -m 256 -u root -p 12000 -d
+memcached/bin/memcached -m 256 -u root -p 11211 -d
+```
+5、配置Memcached允许公网访问
+```shell script
+
+```
