@@ -60,7 +60,29 @@ source /etc/profile
 ./catalina.sh start
 http://${IP}:8080
 ```
+6、tomcat启动缓慢
+```shell script
+vim /usr/local/java/jdk1.8.0_221/jre/lib/security/java.security
 
+securerandom.source=file:/dev/./urandom #修改地址
+```
+7、配置多个tomcat
+```shell script
+vim /etc/profile
+export TOMCAT_HOME=/home/server/vanessa/
+export CATALINA_BASE=/home/server/vanessa/
+export CATALINA_HOME=/home/server/vanessa/
+source /etc/profile
+
+vim /home/server/vanessa/bin/catalina.sh
+
+#开头处添加
+export CATALINA_BASE=$CATALINA_BASE
+export CATALINA_HOME=$CATALINA_HOME
+
+./startup.sh start
+#访问：http://ip:port
+```
 ### 防火墙操作
 ```shell script
 systemctl start firewalld # 启动防火墙
@@ -181,7 +203,12 @@ select 'host' from user where user='root'; #查询下你的用户名为root下ho
 update user set host ='%'where user ='root';
 flush privileges; # 一定记得刷新
 ```
-
+7、开启关闭忽略表名大小写
+```shell script
+vim /etc/my.cnf
+lower_case_table_names=1 # 1、关闭 0开启
+service mysqld restart
+```
 ### memcached安装
 1、memcached依赖于libevent库,因此需要先安装 libevent
 ```shell script
@@ -213,8 +240,4 @@ make && make install
 ```shell script
 memcached/bin/memcached -m 256 -u root -p 12000 -d
 memcached/bin/memcached -m 256 -u root -p 11211 -d
-```
-5、配置Memcached允许公网访问
-```shell script
-
 ```
