@@ -4,7 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
- * Created by cs on 2020/7/7
+ * Created by SINK on 2020/7/7
  */
 @SpringBootApplication
 public class SinkWebApplication {

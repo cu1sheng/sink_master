@@ -141,6 +141,7 @@ password-db = passwd #使用哪个文件作为账号文件
 authz-db = authz #使用哪个文件作为权限文件
 realm =/var/svn/目录名 # 认证空间名，版本库所在目录
 ```
+
 6、启动svn版本库
 ```shell script
 svnserve -d -r /var/svn/repo --listen-port=3690
@@ -182,22 +183,34 @@ sudo yum install wget
 sudo rpm -ivh mysql57-community-release-el7-8.noarch.rpm
 sudo yum install mysql-server
 ```
-4、设置密码
+4、获取初始化密码
 ```shell script
 sudo grep 'temporary password' /var/log/mysqld.log #查看临时密码 如若为空请保证安装前已将mysql相关文件删除干净
 systemctl restart mysqld # 重启服务
 systemctl status mysqld # 查看服务执行状态
 grep 'temporary password' /var/log/mysqld.log #再次查看临时密码
 ```
-5、配置安装选项
+5、密码更改
 ```shell script
-sudo mysql_secure_installation #输入刚才的临时密码 All done!表示配置已经完成
+# sudo mysql_secure_installation #输入刚才的临时密码 All done!表示配置已经完成
+
+mysqladmin -u root password '123456'
+vim /etc/my.cnf #根目录的\etc\my.cnf文件中添加一行skip-grant-tables
+
+systemctl restart mysqld.service #重启服务
+
+mysql
+update mysql.user set authentication_string=password('123456') where user='root';
+flush privileges;
 ```
 6、远程访问
 ```shell script
 #连接数据库报错：1130-Host 'xxx' is not allowed to connect to this MySQL server解决
 mysql -u root -p #连接服务器
 show databases; #看当前所有数据库
+#You must reset your password using ALTER USER statement before executing this statement.
+alter user user() identified by '123456';
+
 use mysql; #进入mysql数据库
 select 'host' from user where user='root'; #查询下你的用户名为root下host字段的参数
 update user set host ='%'where user ='root';
@@ -241,3 +254,103 @@ make && make install
 memcached/bin/memcached -m 256 -u root -p 12000 -d
 memcached/bin/memcached -m 256 -u root -p 11211 -d
 ```
+### zookeeper安装
+1.0 下载zookeeper-3.4.9
+```shell script
+wget http://archive.apache.org/dist/zookeeper/zookeeper-3.4.9/zookeeper-3.4.9.tar.gz
+```
+1.1 解压zookeeper-3.4.9
+```shell script
+tar -zxvf zookeeper-3.4.9.tar.gz -C /usr/local/
+```
+1.2 在zookeeper-3.4.9中创建目录(根据自己zookeeper安装的路径进行修改路径)
+```shell script
+mkdir /usr/local/zookeeper-3.4.9/data
+mkdir /usr/local/zookeeper-3.4.9/logs
+```
+
+1.3 对/usr/local/zookeeper-3.4.9/conf目录下的文件zoo_sample.cfg进行拷贝(根据自己zookeeper安装的路径进行修改路径)
+```shell script
+cd /usr/local/zookeeper-3.4.9/conf
+cp zoo_sample.cfg zoo.cfg
+```
+1.4 修改配置文件
+```shell script
+dataLogDir=/usr/local/zookeeper/logs
+dataDir=/usr/local/zookeeper/data
+
+#配置集群
+server.1={pi}:2888:3888
+```
+1.5 编辑/etc/profile并在文件末尾添加zookeeper配置
+```shell script
+#编辑文件
+vi /etc/profile 
+
+#添加下面内容(根据自己的路径进行修改)
+export ZOOKEEPER_HOME=/usr/local/zookeeper
+export PATH=$ZOOKEEPER_HOME/bin:$PATH
+
+#生效修改的配置
+source /etc/profile
+```
+1.6 将zookeeper加入开机自启
+```shell script
+#编辑文件
+vi /etc/init.d/zookeeper
+
+#加入以下内容（根据自己的环境修改响应的路径）
+
+#!/bin/bash  
+#chkconfig:2345 20 90  
+#description:zookeeper
+#processname:zookeeper  
+export JAVA_HOME=/usr/local/java/jdk1.8.0_221
+export ZOO_LOG_DIR=/usr/local/zookeeper/logs
+case $1 in  
+    start) su root /usr/local/zookeeper/bin/zkServer.sh start;;  
+    stop) su root /usr/local/zookeeper/bin/zkServer.sh stop;;  
+    status) su root /usr/local/zookeeper/bin/zkServer.sh status;;  
+    restart) su root /usr/local/zookeeper/bin/zkServer.sh restart;;  
+    *) echo "require start|stop|status|restart" ;;  
+esac
+
+#给定执行权限并做成服务和加入开机自启
+chmod a+x /etc/init.d/zookeeper
+chkconfig zookeeper on
+chkconfig --add zookeeper
+
+#相关命令
+service zookeeper start
+service zookeeper stop
+service zookeeper status
+service zookeeper restart
+```
+### dubbo-admin安装
+#### dubbox项目github地址:https://github.com/dangdangdotcom/dubbox
+```shell script
+tar -zxvf apache-tomcat-8.5.30.tar.gz 
+
+# tomcat重命名（系统里面已经有了一个tomcat为了区分所以就重命名了）
+mv apache-tomcat-8.5.30.tar.gz /usr/local/dubbo-tomcat-8.5.30
+
+#删除dubbo-tomcat-8.5.30中webapp中所有的内容
+cd /usr/local/dubbo-tomcat-8.5.30/webapps/
+rm -rf *
+# 上传并且解压dubbo-admin-2.8.4.war,并且把目录命名root
+unzip dubbo-admin-2.8.4.war -d ROOT
+```
+配置dubboproperties(根据实际情况修改用户名密码以及zookeeper地址)
+```shell script
+vi ROOT/WEB-INF/dubbo.properties
+#dubbo.registry.address=zookeeper://ip:2181
+#dubbo.admin.root.password=root
+#dubbo.admin.guest.password=guest
+```
+启动tomcat服务(如果有两个tomcat的话需要修改端口否则有一个起不来)
+```shell script
+./usr/local/dubbo-tomcat-8.5.30/bin/startup.sh
+```
+浏览器中验证
+IP:dubbo-tomcat-8.5.30端口
+账号和密码则是dubbo.properties中的
